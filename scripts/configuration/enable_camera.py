@@ -9,11 +9,10 @@ import sys
 import os
 from multiprocessing.pool import ThreadPool
 
-# cameraNumbers = [18]
 cameraNumbers = range(1, 19)
+cameraNumbers = [3]
 hostnames = ["hemipicam%02d.local" % (x) for x in cameraNumbers]
-print(hostnames)
-paramiko.util.log_to_file("check_startup.log")
+paramiko.util.log_to_file("enable_camera.log")
 
 username = "pi"
 
@@ -45,13 +44,14 @@ def enable_camera(channel):
 	channel.sendall('cd /usr/bin\n')
 	print("Executing . raspi-config nonint")
 	channel.sendall('. raspi-config nonint\n')
-	print("Executing do_camera 1")
-	channel.sendall('do_camera 1\n')
+	print("Executing do_camera 0")
+	channel.sendall('do_camera 0\n')
 
 	print("Reading output")
 	if channel.recv_ready:
 		data = channel.recv(1024)
 		print(data)
+	channel.sendall('sudo shutdown -r now\n')
 
 def shutdown(channel):
 	while channel.recv_ready():
@@ -98,10 +98,10 @@ for hostname in hostnames:
 
 
 
-# pool = ThreadPool(4)
-# pool.map(enable_camera, channels.values())
-for hostname, channel in channels.items():
-	shutdown(channel)
+pool = ThreadPool(4)
+pool.map(enable_camera, channels.values())
+# for hostname, channel in channels.items():
+	# shutdown(channel)
 
 for hostname, channel in channels.items():
 	t = channel.get_transport()
