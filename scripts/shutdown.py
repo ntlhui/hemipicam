@@ -11,6 +11,7 @@ from multiprocessing.pool import ThreadPool
 
 # cameraNumbers = [18]
 cameraNumbers = range(1, 19)
+# cameraNumbers = range(1, 18)
 hostnames = ["hemipicam%02d.local" % (x) for x in cameraNumbers]
 print(hostnames)
 paramiko.util.log_to_file("check_startup.log")
@@ -61,39 +62,51 @@ def shutdown(channel):
 	channel.sendall('sudo shutdown now\n')
 
 def connectHost(hostname):
-	print("Attempting to connect to %s" % hostname)
 	global channels
 	global status
+	if hostname in status and status[hostname] is True:
+		print("Attempting to connect to %s" % hostname)
+		try:
+			sock = socket.create_connection((hostname, port), 1)
+		except Exception as e:
+			print("Unable to connect to %s" % (hostname))
+			status[hostname] = False
+			return
+
+		t = paramiko.Transport(sock)
+		t.get_security_options().key_types = key_types
+		print("Authenticating with %s" % hostname)
+		try:
+			t.connect(hostkey = keys[hostname]['ecdsa-sha2-nistp256'], pkey = agent_keys[0], username = username)
+		except paramiko.SSHException as e:
+			print("Unable to authenticate with %s" % (hostname))
+			status[hostname] = False
+			t.close();
+			return
+		except KeyError:
+			print("Key not found!")
+			status[hostname] = False
+			t.close();
+			return
+		print("Connected to %s" % hostname)
+
+		channel = t.open_session()
+		channels[hostname] = channel
+		status[hostname] = True
+
+def resolveHost(hostname):
+	print("Resolving %s" % hostname)
+	global status
 	try:
-		sock = socket.create_connection((hostname, port), 1)
-	except Exception as e:
-		print("Unable to connect to %s" % (hostname))
+		socket.gethostbyname(hostname)
+		status[hostname] = True
+		print("%s is up" % hostname)
+	except socket.error:
 		status[hostname] = False
-		return
-
-	t = paramiko.Transport(sock)
-	t.get_security_options().key_types = key_types
-	print("Authenticating with %s" % hostname)
-	try:
-		t.connect(hostkey = keys[hostname]['ecdsa-sha2-nistp256'], pkey = agent_keys[0], username = username)
-	except paramiko.SSHException as e:
-		print("Unable to authenticate with %s" % (hostname))
-		status[hostname] = False
-		t.close();
-		return
-	except KeyError:
-		print("Key not found!")
-		status[hostname] = False
-		t.close();
-		return
-	print("Connected to %s" % hostname)
-
-	channel = t.open_session()
-	channels[hostname] = channel
-	status[hostname] = True
-
+		print("%s is not up!" % hostname)
 	
 for hostname in hostnames:
+	resolveHost(hostname)
 	connectHost(hostname)
 
 
@@ -110,3 +123,9 @@ for hostname, channel in channels.items():
 
 for hostname in hostnames:
 	print("%s: %s" % (hostname, str(status[hostname])))
+
+alive = 0
+for hostname in hostnames:
+	if status[hostname]:
+		alive += 1
+print("%d of %d told to shutdown" % (alive, len(hostnames)))

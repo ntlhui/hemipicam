@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+# This script checks that the network is up, and that all PIs in the cluster are
+# connected to the network.
+
 import socket
 from multiprocessing.pool import ThreadPool
 

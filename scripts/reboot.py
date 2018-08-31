@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-# This script checks that all PIs in the cluster are up and functioning properly.
-
 from binascii import hexlify
 import paramiko
 import threading
@@ -12,14 +10,15 @@ import os
 from multiprocessing.pool import ThreadPool
 import argparse
 
-parser = argparse.ArgumentParser(description = 'Startup check tool for HemiPiCam')
+parser = argparse.ArgumentParser(description = 'HemiPiCam Reboot Tool')
 parser.parse_args()
 
-# 18 PIs
+
+# cameraNumbers = [18]
 cameraNumbers = range(1, 19)
 hostnames = ["hemipicam%02d.local" % (x) for x in cameraNumbers]
 print(hostnames)
-paramiko.util.log_to_file("check_startup.log")
+paramiko.util.log_to_file("reboot.log")
 
 username = "pi"
 
@@ -37,6 +36,34 @@ channels = {}
 status = {}
 
 keys = paramiko.util.load_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
+
+def enable_camera(channel):
+	print("Creating files")
+	while channel.recv_ready():
+		channel.recv(1024)
+	channel.invoke_shell()
+
+	print("Executing commands")
+	print("Executing sudo su")
+	channel.sendall('sudo su\n')
+	print("Executing cd /usr/bin")
+	channel.sendall('cd /usr/bin\n')
+	print("Executing . raspi-config nonint")
+	channel.sendall('. raspi-config nonint\n')
+	print("Executing do_camera 1")
+	channel.sendall('do_camera 1\n')
+
+	print("Reading output")
+	if channel.recv_ready:
+		data = channel.recv(1024)
+		print(data)
+
+def shutdown(channel):
+	while channel.recv_ready():
+		channel.recv(1024)
+	channel.invoke_shell()
+
+	channel.sendall('sudo shutdown -r now\n')
 
 def connectHost(hostname):
 	global channels
@@ -82,27 +109,27 @@ def resolveHost(hostname):
 		status[hostname] = False
 		print("%s is not up!" % hostname)
 	
-
-# pool = ThreadPool(1)
-# pool.map(connectHost, hostnames)
 for hostname in hostnames:
 	resolveHost(hostname)
 	connectHost(hostname)
 
 
-for hostname in hostnames:
-	print("%s: %s" % (hostname, str(status[hostname])))
+
+pool = ThreadPool(4)
+pool.map(shutdown, channels.values())
+# for hostname, channel in channels.items():
+# 	shutdown(channel)
 
 for hostname, channel in channels.items():
 	t = channel.get_transport()
 	channel.close()
 	t.close()
 
+for hostname in hostnames:
+	print("%s: %s" % (hostname, str(status[hostname])))
+
 alive = 0
 for hostname in hostnames:
 	if status[hostname]:
 		alive += 1
-print("%d of %d up" % (alive, len(hostnames)))
-
-# if __name__ == '__main__':
-# 	main()
+print("%d of %d told to reboot" % (alive, len(hostnames)))

@@ -11,12 +11,12 @@ from multiprocessing.pool import ThreadPool
 import time
 import argparse
 
-parser = argparse.ArgumentParser(description = "Hemipicam Parallel Execute")
-parser.add_argument("-u", "--username",  default = "pi")
-parser.add_argument("command")
-args = parser.parse_args()
-username = args.username
-command = args.command
+parser = argparse.ArgumentParser(description = 'HemiPiCam Start Script.  Use me '
+	'to stop the entire cluster via ssh')
+parser.parse_args()
+
+username = 'pi'
+command = 'sudo ./hemipicam_stop.sh'
 
 cameraNumbers = range(1, 19)
 hostnames = ["hemipicam%02d.local" % (x) for x in cameraNumbers]
