@@ -41,7 +41,7 @@ signal.signal(signal.SIGINT, handler)
 
 
 camera.resolution = (1640, 1232)
-camera.framerate = 30
+camera.framerate = 15
 camera.awb_mode = 'sunlight'
 # camera.awb_gains = (0, 0)
 # camera.brightness = 50
