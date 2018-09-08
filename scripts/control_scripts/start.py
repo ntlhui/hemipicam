@@ -37,8 +37,6 @@ status = {}
 
 keys = paramiko.util.load_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
 
-file = "script.sh"
-
 def execute(channel):
 	global command
 	# print("Creating files")
