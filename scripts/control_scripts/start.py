@@ -11,45 +11,12 @@ from multiprocessing.pool import ThreadPool
 import time
 import argparse
 
-parser = argparse.ArgumentParser(description = 'HemiPiCam Start Script.  Use me '
-	'to start the entire cluster via ssh')
-parser.parse_args()
+# Forward declaration of the command string
+command = ""
 
-username = 'pi'
-command = 'sudo ./hemipicam_start.sh'
-
-cameraNumbers = range(1, 19)
-hostnames = ["hemipicam%02d.local" % (x) for x in cameraNumbers]
-paramiko.util.log_to_file("parallel_execute.log")
-
-port = 22
-key_types = ('ecdsa-sha2-nistp256',
-	'ssh-ed25519', 
-	'ecdsa-sha2-nistp384',
-	'ecdsa-sha2-nistp521',
-	'ssh-rsa',
-	'ssh-dss')
-
-agent = paramiko.Agent()
-agent_keys = agent.get_keys()
-channels = {}
-status = {}
-
-keys = paramiko.util.load_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
-
+# Execute function.  Accepts a paramiko channel.
 def execute(channel):
 	global command
-	# print("Creating files")
-	# while channel.recv_ready():
-	# 	channel.recv(1024)
-	# channel.invoke_shell()
-
-	# print("Executing commands")
-	# print("Executing sudo su")
-	# channel.sendall('sudo su\n')
-	# print("Executing command")
-	# channel.sendall('%s\n' % (command))
-	# print("Reading output")
 	print("Executing command")
 	channel.exec_command(command)
 	if channel.recv_ready:
@@ -73,7 +40,8 @@ def connectHost(hostname):
 	t.get_security_options().key_types = key_types
 	print("Authenticating with %s" % hostname)
 	try:
-		t.connect(hostkey = keys[hostname]['ecdsa-sha2-nistp256'], pkey = agent_keys[0], username = username)
+		t.connect(hostkey = keys[hostname]['ecdsa-sha2-nistp256'], 
+			pkey = agent_keys[0], username = username)
 	except paramiko.SSHException as e:
 		print("Unable to authenticate with %s" % (hostname))
 		status[hostname] = False
@@ -89,6 +57,33 @@ def connectHost(hostname):
 	channel = t.open_session()
 	channels[hostname] = channel
 	status[hostname] = True
+
+
+parser = argparse.ArgumentParser(description = 'HemiPiCam Start Script.  Use me '
+	'to start the entire cluster via ssh')
+parser.parse_args()
+
+username = 'pi'
+command = 'sudo ./hemipicam_start.sh'
+
+cameraNumbers = range(1, 19)
+hostnames = ["hemipicam%02d.local" % (x) for x in cameraNumbers]
+paramiko.util.log_to_file("start.log")
+
+port = 22
+key_types = ('ecdsa-sha2-nistp256',
+	'ssh-ed25519', 
+	'ecdsa-sha2-nistp384',
+	'ecdsa-sha2-nistp521',
+	'ssh-rsa',
+	'ssh-dss')
+
+agent = paramiko.Agent()
+agent_keys = agent.get_keys()
+channels = {}
+status = {}
+
+keys = paramiko.util.load_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
 
 
 	
